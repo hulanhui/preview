@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Configuration后面的status，这个用于设置log4j2自身内部的信息输出，可以不设置，当设置成trace时，
+     你会看到log4j2内部各种详细输出。可以设置成OFF(关闭) 或 Error(只输出错误信息)。
+     600s 刷新此配置
+-->
+<Configuration status="WARN" monitorInterval="600">
+
+    <!-- 日志文件目录、日志格式配置 -->
+    <properties>
+        <!-- 优先级从高到低分别是 OFF、FATAL、ERROR、WARN、INFO、DEBUG、ALL -->
+        <!-- 单词解释： Match：匹配 DENY：拒绝 Mismatch：不匹配 ACCEPT：接受 -->
+        <!-- DENY，日志将立即被抛弃不再经过其他过滤器； NEUTRAL，有序列表里的下个过滤器过接着处理日志； ACCEPT，日志会被立即处理，不再经过剩余过滤器。 -->
+        <!--输出日志的格式
+         %d{yyyy-MM-dd HH:mm:ss, SSS} : 日志生产时间
+         %p : 日志输出格式
+         %c : logger的名称
+         %m : 日志内容，即 logger.info("message")
+         %n : 换行符
+         %C : Java类名
+         %L : 日志输出所在行数
+         %M : 日志输出所在方法名
+         hostName : 本地机器名
+         hostAddress : 本地ip地址 -->
+        <Property name="BASE-DIR">/data/logs</Property>
+        <Property name="APP_NAME">preview</Property>
+        <Property name="PATTERN-A">%clr{%d{yyyy-MM-dd HH:mm:ss.SSS}}{faint} %clr{%5p} %clr{${sys:PID}}{magenta} %clr{---}{faint} %clr{[%15.15t]}{faint} %clr{%-40.40c{1.}}{cyan} %clr{:}{faint} %m%n%xwEx</Property>
+        <Property name="PATTERN-B">%d{yyyy-MM-dd HH:mm:ss} | %-5level | %class{36}:%L | %M() | - %msg%xEx%n</Property>
+    </properties>
+
+    <Appenders>
+        <!-- 输出控制台日志的配置 -->
+        <Console name="console" target="SYSTEM_OUT">
+            <!--控制台只输出对应level及以上级别的信息（onMatch），其他的直接拒绝（onMismatch）-->
+            <ThresholdFilter level="debug" onMatch="ACCEPT" onMismatch="DENY"/>
+            <!-- 输出日志的格式 -->
+            <PatternLayout pattern="${PATTERN-A}"/>
+        </Console>
+
+        <!-- info 文件压缩存储 -->
+        <RollingRandomAccessFile name="info-file" fileName="${BASE-DIR}/${APP_NAME}/${APP_NAME}.info.log" immediateFlush="true"
+                                 filePattern="${BASE-DIR}/${APP_NAME}/$${date:yyyy-MM}/${APP_NAME}-%d{yyyy-MM-dd}-%i.${APP_NAME}.info.gz">
+            <PatternLayout pattern="${PATTERN-B}"/>
+            <Policies>
+                <!-- 每到10M生成一个日志文件 -->
+                <SizeBasedTriggeringPolicy size="2 MB" />
+            </Policies>
+            <Filters>
+                <!-- 只记录info和warn级别信息 -->
+                <ThresholdFilter level="error" onMatch="DENY" onMismatch="NEUTRAL"/>
+                <ThresholdFilter level="info" onMatch="ACCEPT" onMismatch="DENY"/>
+            </Filters>
+            <!-- 指定每天的最大压缩包个数，默认7个，超过了会覆盖之前的 -->
+            <DefaultRolloverStrategy max="150"/>
+        </RollingRandomAccessFile>
+
+        <!-- error 文件压缩存储 -->
+        <RollingRandomAccessFile name="error-file" fileName="${BASE-DIR}/${APP_NAME}/${APP_NAME}.error.log" immediateFlush="true"
+                                 filePattern="${BASE-DIR}/$${date:yyyy-MM}/${APP_NAME}-%d{yyyy-MM-dd}-%i.${APP_NAME}.error.gz">
+            <PatternLayout pattern="${PATTERN-B}"/>
+            <Policies>
+                <!-- 每到10M生成一个日志文件 -->
+                <SizeBasedTriggeringPolicy size="2 MB" />
+                <!-- 每天生成一个日志文件 -->
+                <!--<TimeBasedTriggeringPolicy interval="1" modulate="true"/>-->
+            </Policies>
+            <Filters>
+                <!-- 只记录error级别信息 -->
+                <ThresholdFilter level="error" onMatch="ACCEPT" onMismatch="DENY"/>
+            </Filters>
+            <!-- 指定每天的最大压缩包个数，默认7个，超过了会覆盖之前的 -->
+            <DefaultRolloverStrategy max="150"/>
+        </RollingRandomAccessFile>
+
+    </Appenders>
+    <Loggers>
+        <logger name="cn.keking" level="debug" />
+        <Root level="${env:CUSTOM.LOGGING.LEVEL.ROOT:-info}">
+            <AppenderRef ref="${env:CUSTOM.LOGGING.TARGET:-console}"/>
+            <AppenderRef ref="error-file"/>
+        </Root>
+    </Loggers>
+</Configuration>
